@@ -368,7 +368,13 @@ async def analyze_with_llm(screenshot_bytes: bytes, symbol: str, account_name: s
     Returns analysis text only - no base64/images.
     """
     if not LLM_API_KEY:
-        return "LLM 分析失败：EnvironmentError: LLM_API_KEY not configured"
+        logger.error("LLM_API_KEY is not set!")
+        return "LLM 分析失败：EnvironmentError: LLM_API_KEY not configured. Please set LLM_API_KEY in .env"
+
+    logger.info(f"Account {account_name}: Starting LLM analysis...")
+    logger.info(f"  API Base: {LLM_API_BASE}")
+    logger.info(f"  Model: {LLM_MODEL}")
+    logger.info(f"  Screenshot size: {len(screenshot_bytes)} bytes")
 
     try:
         client = AsyncOpenAI(api_key=LLM_API_KEY, base_url=LLM_API_BASE)
@@ -419,6 +425,9 @@ async def analyze_with_llm(screenshot_bytes: bytes, symbol: str, account_name: s
     except Exception as e:
         error_msg = f"LLM 分析失败：{type(e).__name__}: {str(e)}"
         logger.error(error_msg)
+        logger.error(f"  API Base: {LLM_API_BASE}")
+        logger.error(f"  Model: {LLM_MODEL}")
+        logger.error(f"  API Key set: {bool(LLM_API_KEY)}")
         print(traceback.format_exc(), file=sys.stderr)
         return error_msg
 
@@ -589,20 +598,33 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 async def main():
     """Run the MCP server (stdio mode)."""
+    logger.info("=" * 50)
     logger.info("Starting TradingView MCP Server (stdio mode)...")
-    logger.info(f"LLM API Base: {LLM_API_BASE}")
-    logger.info(f"LLM Model: {LLM_MODEL}")
+    logger.info("=" * 50)
+
+    # Log configuration
+    logger.info(f"LLM_API_BASE: {LLM_API_BASE}")
+    logger.info(f"LLM_MODEL: {LLM_MODEL}")
+    logger.info(f"LLM_API_KEY: {'SET (' + LLM_API_KEY[:8] + '...)' if LLM_API_KEY else 'NOT SET!'}")
+    logger.info(f"ACCOUNTS_CONFIG_PATH: {ACCOUNTS_CONFIG_PATH}")
 
     # Validate LLM configuration
     if not LLM_API_KEY:
-        logger.warning("Warning: LLM_API_KEY not found in environment")
+        logger.error("ERROR: LLM_API_KEY not found in environment!")
+        logger.error("Please set LLM_API_KEY in .env file or environment")
 
     # Load and validate accounts
     accounts = load_accounts()
     if not accounts:
-        logger.warning("Warning: No TradingView accounts configured")
+        logger.error("ERROR: No TradingView accounts configured!")
+        logger.error(f"Please create accounts config at: {ACCOUNTS_CONFIG_PATH}")
     else:
-        logger.info(f"Loaded {len(accounts)} TradingView accounts")
+        logger.info(f"Loaded {len(accounts)} TradingView accounts:")
+        for acc in accounts:
+            name = acc.get("name", "unnamed")
+            has_session = "YES" if acc.get("session") else "NO"
+            has_sign = "YES" if acc.get("sign") else "NO"
+            logger.info(f"  - {name}: session={has_session}, sign={has_sign}")
 
     try:
         async with stdio_server() as (read_stream, write_stream):
