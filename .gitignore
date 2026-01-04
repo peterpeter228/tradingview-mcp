@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Sensitive configuration (accounts with cookies)
+accounts.yaml
+
 # Python
 __pycache__/
 *.py[cod]

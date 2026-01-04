@@ -26,7 +26,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest black ruff
+        pip install pytest pytest-asyncio black ruff
     
     - name: Lint with ruff
       run: |
@@ -38,7 +38,8 @@ jobs:
     
     - name: Run basic import test
       run: |
-        python -c "from tradingview_mcp.server import TradingViewClient; print('✓ Import successful')"
+        cd ${{ github.workspace }}
+        python -c "import sys; sys.path.insert(0, 'src'); from tradingview_mcp.server import app, main, run; print('✓ Import successful')"
 
   security:
     runs-on: ubuntu-latest
@@ -79,4 +80,13 @@ jobs:
           exit 1
         else
           echo "✓ No .env file in repository"
+        fi
+    
+    - name: Check for accounts.yaml file in repo
+      run: |
+        if [ -f "accounts.yaml" ]; then
+          echo "❌ accounts.yaml file found in repository!"
+          exit 1
+        else
+          echo "✓ No accounts.yaml file in repository"
         fi

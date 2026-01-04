@@ -1,16 +1,16 @@
 [project]
 name = "tradingview-mcp"
-version = "0.1.0"
-description = "Lightweight TradingView MCP server for fetching chart snapshots"
+version = "0.2.0"
+description = "TradingView MCP server with multi-account support and LLM analysis"
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-keywords = ["tradingview", "mcp", "model-context-protocol", "charts", "trading"]
+keywords = ["tradingview", "mcp", "model-context-protocol", "charts", "trading", "analysis"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -20,14 +20,17 @@ classifiers = [
 ]
 
 dependencies = [
-    "mcp>=0.9.0",
-    "requests>=2.31.0",
+    "mcp>=1.0.0",
     "python-dotenv>=1.0.0",
+    "playwright>=1.40.0",
+    "openai>=1.12.0",
+    "pyyaml>=6.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-asyncio>=0.23.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
 ]
@@ -38,7 +41,7 @@ Repository = "https://github.com/yourusername/tradingview-mcp"
 Issues = "https://github.com/yourusername/tradingview-mcp/issues"
 
 [project.scripts]
-tradingview-mcp = "tradingview_mcp.server:main"
+tradingview-mcp = "tradingview_mcp.server:run"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
@@ -54,3 +57,6 @@ target-version = ['py310']
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
