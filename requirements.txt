@@ -1,7 +1,12 @@
 # Core dependencies
-mcp>=0.9.0
-requests>=2.31.0
+mcp>=1.0.0
 python-dotenv>=1.0.0
 
 # Lightweight browser automation (required for TradingView charts)
 playwright>=1.40.0
+
+# LLM API client (OpenAI-compatible, for CometAPI)
+openai>=1.12.0
+
+# YAML config parsing
+pyyaml>=6.0.0
