@@ -1,0 +1,68 @@
+# CoinGlass Legend MCP Server - Multi-Account Cookie Configuration
+# 
+# 文件位置: /etc/coinglass-legend-mcp/accounts.yaml
+#
+# 如何获取 Cookie:
+# 1. 打开浏览器，登录 legend.coinglass.com
+# 2. 按 F12 打开开发者工具
+# 3. 切换到 Application/存储 标签页
+# 4. 在 Cookies 下找到 legend.coinglass.com 和 .coinglass.com
+# 5. 复制所需的 cookie 值
+#
+# 注意事项:
+# - domain 支持 .coinglass.com 和 legend.coinglass.com
+# - secure/httpOnly/expires 等字段可选
+# - 每个账号会独立创建浏览器 context，互不影响
+
+accounts:
+  # 账号 1
+  - name: acc1
+    cookies:
+      # 主域名 cookie（通常是登录态）
+      - name: session
+        value: "your_session_cookie_value_here"
+        domain: ".coinglass.com"
+        path: "/"
+        secure: true
+        httpOnly: true
+      
+      # Legend 子域名 cookie
+      - name: legend_token
+        value: "your_legend_token_value_here"
+        domain: "legend.coinglass.com"
+        path: "/"
+        secure: true
+        httpOnly: false
+      
+      # 其他可能需要的 cookie（根据实际情况添加）
+      - name: cf_clearance
+        value: "cloudflare_clearance_if_needed"
+        domain: ".coinglass.com"
+        path: "/"
+        secure: true
+        httpOnly: true
+
+  # 账号 2
+  - name: acc2
+    cookies:
+      - name: session
+        value: "account2_session_value"
+        domain: ".coinglass.com"
+        path: "/"
+        secure: true
+        httpOnly: true
+      
+      - name: legend_token
+        value: "account2_legend_token"
+        domain: "legend.coinglass.com"
+        path: "/"
+        secure: true
+        httpOnly: false
+
+  # 可以继续添加更多账号...
+  # - name: acc3
+  #   cookies:
+  #     - name: session
+  #       value: "..."
+  #       domain: ".coinglass.com"
+  #       path: "/"

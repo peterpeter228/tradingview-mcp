@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-keywords = ["tradingview", "mcp", "model-context-protocol", "charts", "trading"]
+keywords = ["tradingview", "mcp", "model-context-protocol", "charts", "trading", "coinglass"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -23,6 +23,9 @@ dependencies = [
     "mcp>=0.9.0",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
+    "playwright>=1.40.0",
+    "pyyaml>=6.0.0",
+    "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +42,7 @@ Issues = "https://github.com/yourusername/tradingview-mcp/issues"
 
 [project.scripts]
 tradingview-mcp = "tradingview_mcp.server:main"
+coinglass-legend-mcp = "coinglass_legend_mcp.server:run"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
