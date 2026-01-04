@@ -1,14 +1,10 @@
 #!/bin/bash
 # ===========================================
-# Run TradingView MCP Server in SSE mode (dev)
+# Run TradingView MCP Server in SSE mode
 # ===========================================
 # 
 # This script runs the MCP server through supergateway
 # exposing it as an SSE endpoint on port 8053
-#
-# Requirements:
-# - Python virtual environment with dependencies
-# - supergateway installed: sudo npm install -g supergateway
 
 set -e
 
@@ -18,47 +14,33 @@ cd "$SCRIPT_DIR"
 # Check for virtual environment
 if [ ! -d "venv" ]; then
     echo "ERROR: Virtual environment not found!"
-    echo "Please run:"
-    echo "  python3 -m venv venv"
-    echo "  source venv/bin/activate"
-    echo "  pip install -r requirements.txt"
-    echo "  playwright install chromium"
+    echo "Please run: ./setup.sh"
     exit 1
 fi
 
-# Activate virtual environment
-source venv/bin/activate
-
 # Check for supergateway
 if ! command -v supergateway &> /dev/null; then
-    echo "supergateway not found. Installing..."
-    sudo npm install -g supergateway
+    echo "ERROR: supergateway not found!"
+    echo "Please install: sudo npm install -g supergateway"
+    exit 1
 fi
 
-# Load environment variables
-if [ -f .env ]; then
-    set -a
-    source .env
-    set +a
-fi
-
-# Check for local accounts.yaml
-if [ ! -f accounts.yaml ] && [ -z "$TRADINGVIEW_ACCOUNTS_CONFIG" ]; then
-    echo "WARNING: accounts.yaml not found!"
+# Check for accounts.yaml
+if [ ! -f "accounts.yaml" ]; then
+    echo "ERROR: accounts.yaml not found!"
     echo "Please copy accounts.yaml.example to accounts.yaml and configure your accounts."
     exit 1
 fi
 
-# Set config path to local if not set
-if [ -z "$TRADINGVIEW_ACCOUNTS_CONFIG" ]; then
-    export TRADINGVIEW_ACCOUNTS_CONFIG="$SCRIPT_DIR/accounts.yaml"
+# Check for .env
+if [ ! -f ".env" ]; then
+    echo "WARNING: .env not found, using defaults"
 fi
 
 echo "=== TradingView MCP Server (SSE mode) ==="
 echo "Port: 8053"
-echo "Config: $TRADINGVIEW_ACCOUNTS_CONFIG"
-echo "Python: $(which python)"
+echo "Config: $SCRIPT_DIR/accounts.yaml"
 echo ""
 
 # Run with supergateway on port 8053
-exec supergateway --stdio "$SCRIPT_DIR/venv/bin/python -m tradingview_mcp.server" --port 8053
+exec supergateway --stdio "$SCRIPT_DIR/start-mcp.sh" --port 8053

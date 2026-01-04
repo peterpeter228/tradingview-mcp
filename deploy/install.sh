@@ -77,12 +77,38 @@ echo -e "${YELLOW}[7/9] Installing Playwright browsers...${NC}"
 playwright install chromium
 playwright install-deps chromium
 
-# Step 8: Setup configuration files
+# Step 8: Create wrapper script and setup configuration
 echo -e "${YELLOW}[8/9] Setting up configuration...${NC}"
+
+# Create MCP start wrapper script
+cat > "$INSTALL_DIR/start-mcp.sh" << 'WRAPPER_EOF'
+#!/bin/bash
+# Internal wrapper script for running MCP server
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Set PYTHONPATH
+export PYTHONPATH="$SCRIPT_DIR/src:$PYTHONPATH"
+
+# Run the MCP server
+exec "$SCRIPT_DIR/venv/bin/python" -m tradingview_mcp.server
+WRAPPER_EOF
+chmod +x "$INSTALL_DIR/start-mcp.sh"
 
 # Create config files if they don't exist
 if [ ! -f "$CONFIG_DIR/env" ]; then
-    cp "$PROJECT_DIR/deploy/env.example" "$CONFIG_DIR/env"
+    cat > "$CONFIG_DIR/env" << 'ENV_EOF'
+# /etc/tradingview-mcp/env
+# This file is loaded by systemd EnvironmentFile directive
+
+# LLM Configuration (CometAPI - OpenAI compatible)
+LLM_API_KEY=your_comet_api_key_here
+LLM_API_BASE=https://api.cometapi.com/v1
+LLM_MODEL=openai/gpt-4o
+
+# TradingView Accounts Config Path
+TRADINGVIEW_ACCOUNTS_CONFIG=/etc/tradingview-mcp/accounts.yaml
+ENV_EOF
     echo -e "${YELLOW}Created $CONFIG_DIR/env - please edit with your API keys${NC}"
 fi
 
@@ -99,22 +125,26 @@ chmod 600 "$CONFIG_DIR/accounts.yaml"
 
 # Step 9: Install systemd service
 echo -e "${YELLOW}[9/9] Installing systemd service...${NC}"
-cat > /etc/systemd/system/tradingview-mcp.service << 'EOF'
+
+# Find supergateway path
+SUPERGATEWAY_PATH=$(which supergateway)
+
+cat > /etc/systemd/system/tradingview-mcp.service << EOF
 [Unit]
 Description=TradingView MCP Server (stdio via supergateway to SSE on port 8053)
 After=network.target
 
 [Service]
 Type=simple
-User=tradingview
-Group=tradingview
-WorkingDirectory=/opt/tradingview-mcp
+User=$SERVICE_USER
+Group=$SERVICE_USER
+WorkingDirectory=$INSTALL_DIR
 
 # Environment file - all keys must be here
-EnvironmentFile=/etc/tradingview-mcp/env
+EnvironmentFile=$CONFIG_DIR/env
 
 # Run MCP stdio server via supergateway to expose as SSE on port 8053
-ExecStart=/usr/bin/supergateway --stdio "/opt/tradingview-mcp/venv/bin/python -m tradingview_mcp.server" --port 8053
+ExecStart=$SUPERGATEWAY_PATH --stdio "$INSTALL_DIR/start-mcp.sh" --port 8053
 
 # Restart policy
 Restart=always
@@ -124,7 +154,7 @@ RestartSec=5
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/tradingview-mcp /tmp
+ReadWritePaths=$INSTALL_DIR /tmp
 PrivateTmp=true
 
 # Logging
