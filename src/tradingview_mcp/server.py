@@ -463,7 +463,7 @@ async def list_tools() -> list[Tool]:
             name="analyze_tradingview_chart",
             description="分析 TradingView 图表。支持多账号并行分析，返回每个账号的技术分析结果。"
             "可以传入 chart URL（推荐，如 /chart/xxxxx）或 symbol（如 BINANCE:BTCUSDT）。"
-            "返回纯文本分析结果，不包含图片。设置 single_account=true 可只用第一个账号（更快）。",
+            "返回纯文本分析结果，不包含图片。",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -479,11 +479,6 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "时间周期：1, 5, 15, 30, 60, 240（分钟）或 D, W, M（日/周/月）",
                         "default": "D",
-                    },
-                    "single_account": {
-                        "type": "boolean",
-                        "description": "只使用第一个账号分析（更快，约30秒）。默认 false 使用所有账号",
-                        "default": False,
                     },
                 },
                 "required": [],
@@ -521,7 +516,6 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         chart_url = arguments.get("chart_url", "")
         symbol = arguments.get("symbol", "")
         interval = arguments.get("interval", "D")
-        single_account = arguments.get("single_account", False)
 
         if not chart_url and not symbol:
             return [
@@ -540,11 +534,6 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                     text="错误：未配置 TradingView 账号。请检查 accounts.yaml 配置文件。",
                 )
             ]
-
-        # Single account mode - only use first account for faster response
-        if single_account:
-            accounts = accounts[:1]
-            logger.info("Single account mode - using first account only (faster)")
 
         # Display symbol for logging
         display_symbol = symbol if symbol else chart_url.split("/")[-1] if chart_url else "unknown"
