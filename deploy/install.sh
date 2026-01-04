@@ -27,65 +27,67 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Get the directory where the script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
 # Configuration
 INSTALL_DIR="/opt/tradingview-mcp"
 CONFIG_DIR="/etc/tradingview-mcp"
 SERVICE_USER="tradingview"
-PYTHON_VERSION="python3"
 
 # Step 1: Install system dependencies
-echo -e "${YELLOW}[1/8] Installing system dependencies...${NC}"
+echo -e "${YELLOW}[1/9] Installing system dependencies...${NC}"
 apt-get update
-apt-get install -y python3 python3-pip python3-venv nodejs npm
+apt-get install -y python3-full python3-venv nodejs npm curl
 
 # Step 2: Install supergateway globally
-echo -e "${YELLOW}[2/8] Installing supergateway...${NC}"
+echo -e "${YELLOW}[2/9] Installing supergateway...${NC}"
 npm install -g supergateway
 
 # Step 3: Create service user
-echo -e "${YELLOW}[3/8] Creating service user...${NC}"
+echo -e "${YELLOW}[3/9] Creating service user...${NC}"
 if ! id "$SERVICE_USER" &>/dev/null; then
     useradd -r -s /bin/false -m -d /var/lib/tradingview "$SERVICE_USER"
 fi
 
 # Step 4: Create installation directory
-echo -e "${YELLOW}[4/8] Setting up installation directory...${NC}"
+echo -e "${YELLOW}[4/9] Setting up installation directory...${NC}"
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$CONFIG_DIR"
 
 # Copy source files
-cp -r src "$INSTALL_DIR/"
-cp requirements.txt "$INSTALL_DIR/"
-cp pyproject.toml "$INSTALL_DIR/"
+cp -r "$PROJECT_DIR/src" "$INSTALL_DIR/"
+cp "$PROJECT_DIR/requirements.txt" "$INSTALL_DIR/"
+cp "$PROJECT_DIR/pyproject.toml" "$INSTALL_DIR/"
 
 # Step 5: Create Python virtual environment
-echo -e "${YELLOW}[5/8] Creating Python virtual environment...${NC}"
+echo -e "${YELLOW}[5/9] Creating Python virtual environment...${NC}"
 cd "$INSTALL_DIR"
-$PYTHON_VERSION -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 
 # Step 6: Install Python dependencies
-echo -e "${YELLOW}[6/8] Installing Python dependencies...${NC}"
+echo -e "${YELLOW}[6/9] Installing Python dependencies...${NC}"
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install -e .
 
 # Step 7: Install Playwright and Chromium
-echo -e "${YELLOW}[7/8] Installing Playwright browsers...${NC}"
+echo -e "${YELLOW}[7/9] Installing Playwright browsers...${NC}"
 playwright install chromium
 playwright install-deps chromium
 
 # Step 8: Setup configuration files
-echo -e "${YELLOW}[8/8] Setting up configuration...${NC}"
+echo -e "${YELLOW}[8/9] Setting up configuration...${NC}"
 
 # Create config files if they don't exist
 if [ ! -f "$CONFIG_DIR/env" ]; then
-    cp deploy/env.example "$CONFIG_DIR/env"
+    cp "$PROJECT_DIR/deploy/env.example" "$CONFIG_DIR/env"
     echo -e "${YELLOW}Created $CONFIG_DIR/env - please edit with your API keys${NC}"
 fi
 
 if [ ! -f "$CONFIG_DIR/accounts.yaml" ]; then
-    cp accounts.yaml.example "$CONFIG_DIR/accounts.yaml"
+    cp "$PROJECT_DIR/accounts.yaml.example" "$CONFIG_DIR/accounts.yaml"
     echo -e "${YELLOW}Created $CONFIG_DIR/accounts.yaml - please edit with your TradingView accounts${NC}"
 fi
 
@@ -95,8 +97,45 @@ chown -R "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR"
 chmod 600 "$CONFIG_DIR/env"
 chmod 600 "$CONFIG_DIR/accounts.yaml"
 
-# Install systemd service
-cp deploy/tradingview-mcp.service /etc/systemd/system/
+# Step 9: Install systemd service
+echo -e "${YELLOW}[9/9] Installing systemd service...${NC}"
+cat > /etc/systemd/system/tradingview-mcp.service << 'EOF'
+[Unit]
+Description=TradingView MCP Server (stdio via supergateway to SSE on port 8053)
+After=network.target
+
+[Service]
+Type=simple
+User=tradingview
+Group=tradingview
+WorkingDirectory=/opt/tradingview-mcp
+
+# Environment file - all keys must be here
+EnvironmentFile=/etc/tradingview-mcp/env
+
+# Run MCP stdio server via supergateway to expose as SSE on port 8053
+ExecStart=/usr/bin/supergateway --stdio "/opt/tradingview-mcp/venv/bin/python -m tradingview_mcp.server" --port 8053
+
+# Restart policy
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/tradingview-mcp /tmp
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tradingview-mcp
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 systemctl daemon-reload
 
 echo ""

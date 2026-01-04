@@ -12,7 +12,7 @@ WorkingDirectory=/opt/tradingview-mcp
 EnvironmentFile=/etc/tradingview-mcp/env
 
 # Run MCP stdio server via supergateway to expose as SSE on port 8053
-ExecStart=/usr/local/bin/supergateway --stdio "tradingview-mcp" --port 8053
+ExecStart=/usr/bin/supergateway --stdio "/opt/tradingview-mcp/venv/bin/python -m tradingview_mcp.server" --port 8053
 
 # Restart policy
 Restart=always
@@ -22,7 +22,7 @@ RestartSec=5
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/tradingview-mcp
+ReadWritePaths=/opt/tradingview-mcp /tmp
 PrivateTmp=true
 
 # Logging

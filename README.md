@@ -27,23 +27,45 @@ git clone https://github.com/yourusername/tradingview-mcp.git
 cd tradingview-mcp
 ```
 
-### 2. 安装依赖
+### 2. 安装系统依赖
 
 ```bash
-# 创建虚拟环境
+# Ubuntu/Debian
+sudo apt update
+sudo apt install -y python3-full python3-venv nodejs npm
+```
+
+### 3. 一键安装（推荐）
+
+```bash
+# 运行自动安装脚本
+./setup.sh
+
+# 安装 supergateway（需要 sudo）
+sudo npm install -g supergateway
+```
+
+### 或手动安装
+
+```bash
+# 创建虚拟环境（必须！现代 Linux 不允许直接 pip install）
 python3 -m venv venv
+
+# 激活虚拟环境
 source venv/bin/activate
+
+# 升级 pip
+pip install --upgrade pip
 
 # 安装 Python 依赖
 pip install -r requirements.txt
-pip install -e .
 
 # 安装 Playwright 浏览器
 playwright install chromium
-playwright install-deps chromium
+sudo playwright install-deps chromium
 
-# 安装 supergateway
-npm install -g supergateway
+# 安装 supergateway（全局）
+sudo npm install -g supergateway
 ```
 
 ### 3. 配置文件
@@ -232,6 +254,20 @@ tradingview-mcp/
 ```
 
 ## 故障排查
+
+### 0. PEP 668 错误（externally-managed-environment）
+
+如果看到 `externally-managed-environment` 错误，说明系统不允许直接 `pip install`。
+
+**解决方案：使用虚拟环境**
+```bash
+# 创建虚拟环境
+python3 -m venv venv
+
+# 激活后再安装
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
 ### 1. LLM 分析失败
 
