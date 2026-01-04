@@ -1,0 +1,57 @@
+[Unit]
+Description=CoinGlass Legend MCP Server (SSE on port 8056)
+Documentation=https://github.com/yourusername/tradingview-mcp
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=coinglass-mcp
+Group=coinglass-mcp
+
+# Working directory
+WorkingDirectory=/opt/coinglass-legend-mcp
+
+# Environment files
+EnvironmentFile=/etc/coinglass-legend-mcp/llm.env
+
+# Pass accounts config path as environment variable
+Environment=ACCOUNTS_YAML=/etc/coinglass-legend-mcp/accounts.yaml
+Environment=VIEWPORT_W=2560
+Environment=VIEWPORT_H=1440
+Environment=STABILIZE_WAIT_MS=1200
+Environment=HIDE_UI=true
+
+# Use supergateway to expose stdio MCP as SSE on port 8056
+# Supergateway wraps the MCP stdio server and provides HTTP/SSE interface
+ExecStart=/usr/bin/npx -y supergateway \
+    --port 8056 \
+    --ssePath /sse \
+    --messagePath /message \
+    --healthEndpoint /healthz \
+    -- python -m coinglass_legend_mcp.server
+
+# Restart policy
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/tmp
+PrivateTmp=yes
+
+# Resource limits
+MemoryMax=2G
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=coinglass-legend-mcp
+
+[Install]
+WantedBy=multi-user.target
