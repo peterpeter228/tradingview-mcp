@@ -323,7 +323,7 @@ async def capture_chart_screenshot(
             logger.warning(f"Account {account_name}: Canvas not found: {e}")
 
         # Wait for chart indicators to render
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
         # Hide UI elements
         await hide_ui_elements(page)
@@ -331,8 +331,8 @@ async def capture_chart_screenshot(
         # Create future whitespace
         await create_future_whitespace(page)
 
-        # Additional wait for stability
-        await asyncio.sleep(1.5)
+        # Brief wait for stability
+        await asyncio.sleep(0.5)
 
         # Take screenshot
         screenshot = await page.screenshot(
@@ -461,9 +461,9 @@ async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="analyze_tradingview_chart",
-            description="分析 TradingView 图表。支持多账号轮询分析，返回每个账号的技术分析结果。"
+            description="分析 TradingView 图表。支持多账号并行分析，返回每个账号的技术分析结果。"
             "可以传入 chart URL（推荐，如 /chart/xxxxx）或 symbol（如 BINANCE:BTCUSDT）。"
-            "返回纯文本分析结果，不包含图片。",
+            "返回纯文本分析结果，不包含图片。设置 single_account=true 可只用第一个账号（更快）。",
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -479,6 +479,11 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "时间周期：1, 5, 15, 30, 60, 240（分钟）或 D, W, M（日/周/月）",
                         "default": "D",
+                    },
+                    "single_account": {
+                        "type": "boolean",
+                        "description": "只使用第一个账号分析（更快，约30秒）。默认 false 使用所有账号",
+                        "default": False,
                     },
                 },
                 "required": [],
@@ -516,6 +521,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         chart_url = arguments.get("chart_url", "")
         symbol = arguments.get("symbol", "")
         interval = arguments.get("interval", "D")
+        single_account = arguments.get("single_account", False)
 
         if not chart_url and not symbol:
             return [
@@ -535,44 +541,57 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 )
             ]
 
+        # Single account mode - only use first account for faster response
+        if single_account:
+            accounts = accounts[:1]
+            logger.info("Single account mode - using first account only (faster)")
+
         # Display symbol for logging
         display_symbol = symbol if symbol else chart_url.split("/")[-1] if chart_url else "unknown"
-        logger.info(f"Starting multi-account analysis for {display_symbol}")
+        logger.info(f"Starting analysis for {display_symbol}")
+        logger.info(f"Processing {len(accounts)} account(s) in PARALLEL")
 
-        results = []
-
-        # Process each account sequentially
-        for account in accounts:
+        async def process_single_account(account: dict) -> dict:
+            """Process a single account - screenshot + LLM analysis."""
             account_name = account.get("name", "unknown")
-            logger.info(f"Processing account: {account_name}")
+            logger.info(f"[{account_name}] Starting...")
 
             try:
                 # Capture screenshot
                 _, screenshot = await capture_chart_screenshot(
-                    account=account, chart_url=chart_url, symbol=symbol, interval=interval
+                    account=account,
+                    chart_url=chart_url,
+                    symbol=symbol,
+                    interval=interval,
                 )
 
                 if screenshot is None:
-                    results.append(
-                        {
-                            "account": account_name,
-                            "analysis": f"截图失败：无法获取账号 {account_name} 的图表截图",
-                        }
-                    )
-                    continue
+                    return {
+                        "account": account_name,
+                        "analysis": f"截图失败：无法获取账号 {account_name} 的图表截图",
+                    }
 
                 # Analyze with LLM
                 analysis = await analyze_with_llm(
-                    screenshot_bytes=screenshot, symbol=display_symbol, account_name=account_name
+                    screenshot_bytes=screenshot,
+                    symbol=display_symbol,
+                    account_name=account_name,
                 )
 
-                results.append({"account": account_name, "analysis": analysis})
+                logger.info(f"[{account_name}] Completed!")
+                return {"account": account_name, "analysis": analysis}
 
             except Exception as e:
                 error_msg = f"处理失败：{type(e).__name__}: {str(e)}"
-                logger.error(f"Account {account_name}: {error_msg}")
+                logger.error(f"[{account_name}] {error_msg}")
                 print(traceback.format_exc(), file=sys.stderr)
-                results.append({"account": account_name, "analysis": error_msg})
+                return {"account": account_name, "analysis": error_msg}
+
+        # Process all accounts in parallel
+        results = await asyncio.gather(
+            *[process_single_account(acc) for acc in accounts],
+            return_exceptions=False,
+        )
 
         # Format response - analysis text only, no images
         response_parts = []
